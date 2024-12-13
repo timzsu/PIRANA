@@ -70,6 +70,15 @@ class Server {
   inline std::vector<uint64_t> get_plain_response(uint32_t index) {
     return _raw_db.at(index);
   };
+  
+  inline void print_budget(seal::Ciphertext cipher, std::string tag = "") {
+    if (cipher.is_ntt_form()) {
+      _evaluator->transform_from_ntt_inplace(cipher);
+    }
+    std::cout << "Noise budget in the ciphertext " << tag << ": "
+              << _decryptor->invariant_noise_budget(cipher) << " bits" << std::endl;
+  }
+
 
   ~Server();
 };

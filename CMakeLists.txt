@@ -3,6 +3,7 @@ project(PIRexamples VERSION 1.0.0 LANGUAGES CXX)
 
 find_package(SEAL 4.0.0 REQUIRED)
 find_package(Kuku 2.1 QUIET REQUIRED)
+find_package(OpenMP REQUIRED)
 
 if(NOT Kuku_FOUND)
     message(FATAL_ERROR "Microsoft Kuku: not found")
@@ -27,7 +28,7 @@ else()
     message(FATAL_ERROR "Cannot find target SEAL::seal or SEAL::seal_shared")
 endif()
 
-target_link_libraries(pirexamples PRIVATE Kuku::kuku)
+target_link_libraries(pirexamples PRIVATE Kuku::kuku OpenMP::OpenMP_CXX)
 
 set_target_properties(pirexamples  PROPERTIES
 RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)

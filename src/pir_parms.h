@@ -33,7 +33,7 @@ class PirParms {
   bool _enable_rotate = false;
   // uint64_t
   std::vector<std::vector<uint32_t>> _bucket;
-  std::map<std::string, uint32_t> _hash_index;
+  std::unordered_map<uint64_t, uint32_t> _hash_index;
   std::vector<std::pair<uint32_t, uint32_t>> _cw_index;
 
   void get_all_index_hash_result(const uint64_t num_payloads,
@@ -72,7 +72,7 @@ class PirParms {
   };
   inline bool get_is_compress() { return _is_compress; };
   inline std::shared_ptr<kuku::KukuTable> get_cuckoo_table() { return _table; };
-  inline std::pair<uint32_t, uint32_t> get_cw(std::string keyword) {
+  inline std::pair<uint32_t, uint32_t> get_cw(uint64_t keyword) {
     return _cw_index[_hash_index[keyword]];
   }
   inline std::vector<std::vector<uint32_t>> &get_bucket() { return _bucket; };

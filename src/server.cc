@@ -4,6 +4,8 @@
 
 #include <random>
 
+const bool par_server = false;
+
 Server::Server(PirParms &pir_parms, bool random_db) : _pir_parms(pir_parms) {
   _context = std::make_unique<seal::SEALContext>(pir_parms.get_seal_parms());
   _evaluator = std::make_unique<seal::Evaluator>(*_context);
@@ -62,10 +64,11 @@ void Server::gen_random_db() {
             << num_payload_slot * (plain_modulus_bit - 1) / 8 << " Bytes"
             << std::endl;
   _raw_db.resize(num_payloads);
-  uint64_t pi = 0;
+  // uint64_t pi = 0;
+  # pragma omp parallel for
   for (auto &payload : _raw_db) {
     payload.resize(num_payload_slot);
-    uint64_t test_i = 0;
+    // uint64_t test_i = 0;
     for (auto &data : payload) {
       // unsafe random generate, just for generating a test database
       data = rand() & plain_mask;
@@ -75,9 +78,9 @@ void Server::gen_random_db() {
       // assert for test
       assert(data < plain_modulus && data != 0);
 
-      test_i++;
+      // test_i++;
     }
-    pi++;
+    // pi++;
   }
 }
 
@@ -201,13 +204,14 @@ void Server::batch_encode_to_ntt_db_without_compress() {
 
   _encoded_db.resize(db_pt_size);
 
-  std::vector<uint64_t> plain_vector(_N, 0);
+  # pragma omp parallel for collapse(2)
   for (uint64_t pl_slot_index = 0;
        pl_slot_index < _pir_parms.get_num_payload_slot(); pl_slot_index++) {
     for (uint64_t col_index = 0; col_index < _pir_parms.get_col_size();
          col_index++) {
       for (uint32_t bundle_index = 0;
            bundle_index < _pir_parms.get_bundle_size(); bundle_index++) {
+        std::vector<uint64_t> plain_vector(_N, 0);
         seal::Plaintext encoded_plain;
         for (uint64_t i = 0; i < _N; i++) {
           if (col_index < bucket[bundle_index * _N + i].size()) {
@@ -229,6 +233,7 @@ void Server::batch_encode_to_ntt_db_without_compress() {
       }
     }
   }
+  std::cout << "Encode database Done!" << std::endl;
 }
 
 // used for batch encode
@@ -339,25 +344,46 @@ std::vector<seal::Ciphertext> Server::gen_selection_vector_batch(
   auto bundle_size = _pir_parms.get_bundle_size();
   selection_vector.resize(col_size * bundle_size);
   auto encoding_size = _pir_parms.get_encoding_size();
-  uint64_t col_index = 0;
   // Todo: now only support hamming weight k = 2
   // Try to support more k
+  std::vector<std::pair<uint64_t, uint64_t>> index_pairs(col_size);
+  uint64_t col_index = 0;
   for (uint64_t i_1 = 1; i_1 < encoding_size && col_index < col_size; i_1++) {
     for (uint64_t i_2 = 0; i_2 < i_1 && col_index < col_size; i_2++) {
-      for (uint32_t bundle_index = 0; bundle_index < bundle_size;
-           bundle_index++) {
-        multiply(*_context, query.at(i_1 * bundle_size + bundle_index),
-                 query.at(i_2 * bundle_size + bundle_index),
-                 selection_vector.at(col_index * bundle_size + bundle_index));
-        _evaluator->relinearize_inplace(
-            selection_vector.at(col_index * bundle_size + bundle_index),
-            _relin_keys);
-        _evaluator->transform_to_ntt_inplace(
-            selection_vector.at(col_index * bundle_size + bundle_index));
-      }
-      col_index++;
+      index_pairs[col_index++] = std::make_pair(i_1, i_2);
     }
   }
+  Timer timer;
+  # pragma omp parallel for collapse(2) if(par_server)
+  for (uint64_t col_index = 0; col_index < col_size; col_index++) {
+    for (uint32_t bundle_index = 0; bundle_index < bundle_size; bundle_index++) {
+      auto& [i_1, i_2] = index_pairs[col_index];
+      multiply(*_context, query.at(i_1 * bundle_size + bundle_index),
+               query.at(i_2 * bundle_size + bundle_index),
+               selection_vector.at(col_index * bundle_size + bundle_index));
+    }
+  }
+  std::cout << "\tmultiply time: " << timer.elapsed();
+  std::cout << ", " << bundle_size * col_size << " multiplications" << std::endl;
+  timer.reset();
+  # pragma omp parallel for collapse(2) if(par_server)
+  for (uint64_t col_index = 0; col_index < col_size; col_index++) {
+    for (uint32_t bundle_index = 0; bundle_index < bundle_size; bundle_index++) {
+      _evaluator->relinearize_inplace(
+          selection_vector.at(col_index * bundle_size + bundle_index),
+          _relin_keys);
+    }
+  }
+  std::cout << "\trelinearize time: " << timer.elapsed() << std::endl;
+  timer.reset();
+  # pragma omp parallel for collapse(2) if(par_server)
+  for (uint64_t col_index = 0; col_index < col_size; col_index++) {
+    for (uint32_t bundle_index = 0; bundle_index < bundle_size; bundle_index++) {
+      _evaluator->transform_to_ntt_inplace(
+          selection_vector.at(col_index * bundle_size + bundle_index));
+    }
+  }
+  std::cout << "\ttransform_to_ntt time: " << timer.elapsed() << std::endl;
   // Todo: test selection vector debug
   // selection_vector_debug(selection_vector);
   return selection_vector;
@@ -502,11 +528,11 @@ std::stringstream Server::inner_product(
   auto num_ct = _pir_parms.get_batch_pir_num_compress_slot();
 
   std::vector<seal::Ciphertext> multi_add_res(num_ct * bundle_size);
-  std::vector<seal::Ciphertext> result_cipher(num_ct * bundle_size);
 
-  std::vector<seal::Ciphertext> tmp_multi_res(col_size);
   for (uint32_t ct = 0; ct < num_ct; ct++) {
+    # pragma omp parallel for if(par_server)
     for (uint32_t bundle = 0; bundle < bundle_size; bundle++) {
+      std::vector<seal::Ciphertext> tmp_multi_res(col_size);
       for (uint32_t col = 0; col < col_size; col++) {
         // encode_db (num_plot, col_size, bundle_size)
         uint32_t plain_index =
@@ -552,13 +578,18 @@ std::stringstream Server::gen_response(std::stringstream &query_stream) {
 };
 
 std::stringstream Server::gen_batch_response(std::stringstream &query_stream) {
+  Timer timer;
   std::vector<seal::Ciphertext> query =
       load_query(query_stream,
                  _pir_parms.get_encoding_size() * _pir_parms.get_bundle_size());
-
+  std::cout << "Load query time: " << timer.elapsed() << std::endl;
+  timer.reset();
   std::vector<seal::Ciphertext> selection_vector =
       gen_selection_vector_batch(query);
+  std::cout << "Gen mask time: " << timer.elapsed() << std::endl;
+  timer.reset();
   std::stringstream response;
   response = inner_product(selection_vector);
+  std::cout << "db scan time: " << timer.elapsed() << std::endl;
   return response;
 };

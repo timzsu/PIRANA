@@ -12,6 +12,8 @@ This repository contains the implementation of both single-query PIR and multi-q
 ## Building the project
 The project can be built using the following command.
 ```
+cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=true -DCMAKE_INSTALL_PREFIX=$HOME/tools -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
 mkdir build && cd build
 cmake ..
 make
@@ -37,7 +39,7 @@ For multi-query PIR
 
 Computation friendly:
 ```
-../bin/pirexamples -b 1 -l 256 -n 16384 -x 256 -c 0
+./bin/pirexamples -b 1 -l 4096 -n $((2**27)) -x 8 -c 0 > test_N27D8.log 2>&1
 ```
 
 Communication friendly:

@@ -1,6 +1,7 @@
 #include "test.h"
 
 #include <assert.h>
+#include <iostream>
 
 #include "utils.h"
 using namespace seal;
@@ -64,6 +65,7 @@ void test_batch_pir_correctness(Server &server,
                                 std::vector<std::vector<uint64_t>> &answer,
                                 std::vector<uint32_t> &query,
                                 PirParms &pir_parms) {
+  std::cout << "Testing correctness" << std::endl;
   auto table = pir_parms.get_cuckoo_table();
   for (auto &q : query) {
     auto real_item = server.get_plain_response(q);
@@ -87,6 +89,9 @@ void test_batch_pir_correctness(Server &server,
         //   std::cout << real_item.at(i) << " " << answer.at(bundle_size * i +
         //   bundle_index).at(slot_index) << std::endl;
         // }
+        if (real_item.at(i) != answer.at(bundle_size * i + bundle_index).at(slot_index)) {
+          throw std::runtime_error("Detect Error");
+        }
         assert(real_item.at(i) ==
                answer.at(bundle_size * i + bundle_index).at(slot_index));
       }
@@ -98,11 +103,15 @@ void test_batch_pir_correctness(Server &server,
           slot = 0;
           ct_index++;
         }
+        if (real_item.at(i) != answer.at(ct_index).at(slot + loc * num_slot)) {
+          throw std::runtime_error("Detect Error");
+        }
         assert(real_item.at(i) ==
                answer.at(ct_index).at(slot + loc * num_slot));
       }
     }
   }
+  std::cout << "Testing finished" << std::endl;
 }
 void test_mulptiply(SEALContext &context, EncryptionParameters &parms,
                     Encryptor &encryptor, Decryptor &decryptor,

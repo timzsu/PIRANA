@@ -116,7 +116,7 @@ void PirParms::get_all_index_hash_result(const uint64_t num_payloads,
 
   if (_is_compress == false) {
     // One response ciphertext only has one slot payload in each bucket;
-    _bundle_size = 0;
+    _bundle_size = static_cast<uint32_t>(num_query * cuckoo_factor) / N;
     while (_bundle_size * N <
            static_cast<uint32_t>(num_query * cuckoo_factor)) {
       _bundle_size++;
@@ -149,25 +149,41 @@ void PirParms::get_all_index_hash_result(const uint64_t num_payloads,
   _table = std::make_shared<kuku::KukuTable>(
       _table_size, stash_size, hash_count, hash_seed, max_probe, empty_item);
 
-  _bucket.resize(_table_size);
+  std::vector<std::set<unsigned int>> hash_result(num_payloads);
+  #pragma omp parallel for
   for (uint64_t index = 0; index < num_payloads; index++) {
-    auto result = _table->all_locations(kuku::make_item(0, index));
-    for (auto &position : result) {
+    hash_result[index] = _table->all_locations(kuku::make_item(0, index));
+  }
+  _bucket.resize(_table_size);
+  
+  // Reserve space for fast insertion
+  # pragma omp parallel for
+  for (auto & b : _bucket) {
+    b.reserve(num_payloads * hash_count / _table_size);
+  }
+  _hash_index.reserve(num_payloads * hash_count);
+
+  std::cout << "Filling in hash index" << std::endl;
+  Timer timer;
+  for (uint64_t index = 0; index < num_payloads; index++) {
+    for (auto &position : hash_result[index]) {
       _bucket[position].push_back(index);
-      if (_hash_index.count(std::to_string(index * _table_size + position)) !=
+      if (_hash_index.count(index * _table_size + position) !=
           0) {
         std::cout << "hash string error: " << index << std::endl;
       }
       assert(_hash_index.count(
-                 std::to_string(index * _table_size + position)) == 0);
-      _hash_index[std::to_string(index * _table_size + position)] =
+                 index * _table_size + position) == 0);
+      _hash_index[index * _table_size + position] =
           _bucket[position].size() - 1;
     }
   }
+  std::cout << "Filled in hash index, elapsed " << timer.elapsed() << " milliseconds." << std::endl;
 
   _col_size = get_bucket_size(_bucket);
   _cw_index.resize(_col_size);
   _encoding_size = calculate_encoding_size(_col_size);
+  #pragma omp parallel for
   for (uint64_t index = 0; index < _col_size; index++) {
     _cw_index[index] = get_cw_code_k2(index, _encoding_size);
   }
@@ -189,7 +205,7 @@ PirParms::PirParms(const uint64_t num_payloads, const uint64_t payload_size,
   assert(is_batch == true && num_query > 1);
 
   uint64_t poly_degree = 4096;
-  std::vector<int> coeff_modulus = {48, 32, 24};
+  std::vector<int> coeff_modulus = {50, 33, 26};
 
   uint64_t plain_prime_len = is_compress? 18 : 17;
 

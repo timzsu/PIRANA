@@ -87,7 +87,7 @@ std::stringstream Client::gen_batch_query(
           _pir_parms.get_cuckoo_table()->query(kuku::make_item(0, q));
       auto loc = res.location();
       auto cw = _pir_parms.get_cw(
-          std::to_string(uint64_t(q) * _pir_parms.get_table_size() + loc));
+          uint64_t(q) * _pir_parms.get_table_size() + loc);
       cw_query[cw.first * bundle_size + loc / _N][loc % _N] = 1;
       cw_query[cw.second * bundle_size + loc / _N][loc % _N] = 1;
     }
@@ -105,7 +105,7 @@ std::stringstream Client::gen_batch_query(
           _pir_parms.get_cuckoo_table()->query(kuku::make_item(0, q));
       auto loc = res.location();
       auto cw = _pir_parms.get_cw(
-          std::to_string(q * _pir_parms.get_table_size() + loc));
+          q * _pir_parms.get_table_size() + loc);
       for (uint32_t slot = 0; slot < num_slot; slot++) {
         auto slot_index = loc * num_slot + slot;
         cw_query.at(cw.first).at(slot_index) = 1;
@@ -159,6 +159,9 @@ std::vector<std::vector<uint64_t>> Client::extract_batch_answer(
     _batch_encoder->decode(pt, answer[i]);
     // std::cout << _decryptor->invariant_noise_budget(response[i]) <<
     // std::endl;
+    if (_decryptor->invariant_noise_budget(response[i]) == 0) {
+      std::cerr << "Noise budget is 0!" << std::endl;
+    }
     assert(_decryptor->invariant_noise_budget(response[i]) != 0);
   }
   return answer;
