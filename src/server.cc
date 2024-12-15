@@ -326,8 +326,10 @@ std::vector<seal::Ciphertext> Server::gen_selection_vector(
   } else {
     for (uint64_t i_1 = 1; i_1 < encoding_size && col_index < col_size; i_1++) {
       for (uint64_t i_2 = 0; i_2 < i_1 && col_index < col_size; i_2++) {
-        multiply(*_context, query.at(i_1), query.at(i_2),
+        _evaluator->multiply(query.at(i_1), query.at(i_2),
                  selection_vector.at(col_index));
+        // multiply(*_context, query.at(i_1), query.at(i_2),
+                //  selection_vector.at(col_index));
         _evaluator->relinearize_inplace(selection_vector.at(col_index),
                                         _relin_keys);
         col_index++;
@@ -358,9 +360,12 @@ std::vector<seal::Ciphertext> Server::gen_selection_vector_batch(
   for (uint64_t col_index = 0; col_index < col_size; col_index++) {
     for (uint32_t bundle_index = 0; bundle_index < bundle_size; bundle_index++) {
       auto& [i_1, i_2] = index_pairs[col_index];
-      multiply(*_context, query.at(i_1 * bundle_size + bundle_index),
+      _evaluator->multiply(query.at(i_1 * bundle_size + bundle_index),
                query.at(i_2 * bundle_size + bundle_index),
                selection_vector.at(col_index * bundle_size + bundle_index));
+      // multiply(*_context, query.at(i_1 * bundle_size + bundle_index),
+      //          query.at(i_2 * bundle_size + bundle_index),
+      //          selection_vector.at(col_index * bundle_size + bundle_index));
     }
   }
   std::cout << "\tmultiply time: " << timer.elapsed();

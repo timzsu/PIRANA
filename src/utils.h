@@ -48,8 +48,8 @@ void try_clear_irrelevant_bits(
 
 // void tran_to_multiply_mid_form_inplace(const seal::SEALContext &context, seal::Ciphertext &encrypted, seal::MemoryPoolHandle pool = seal::MemoryManager::GetPool());
 
-void multiply_mid_form(const seal::SEALContext &context, seal::Ciphertext &encrypted1, seal::Ciphertext &encrypted2, seal::Ciphertext &destination, seal::MemoryPoolHandle pool = seal::MemoryManager::GetPool());
+// void multiply_mid_form(const seal::SEALContext &context, seal::Ciphertext &encrypted1, seal::Ciphertext &encrypted2, seal::Ciphertext &destination, seal::MemoryPoolHandle pool = seal::MemoryManager::GetPool());
 
-void multiply(const seal::SEALContext &context, seal::Ciphertext &encrypted1, const seal::Ciphertext &encrypted2, seal::Ciphertext &destination, seal::MemoryPoolHandle pool = seal::MemoryManager::GetPool());
+// void multiply(const seal::SEALContext &context, seal::Ciphertext &encrypted1, const seal::Ciphertext &encrypted2, seal::Ciphertext &destination, seal::MemoryPoolHandle pool = seal::MemoryManager::GetPool());
 
 #endif

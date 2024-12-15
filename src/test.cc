@@ -113,42 +113,42 @@ void test_batch_pir_correctness(Server &server,
   }
   std::cout << "Testing finished" << std::endl;
 }
-void test_mulptiply(SEALContext &context, EncryptionParameters &parms,
-                    Encryptor &encryptor, Decryptor &decryptor,
-                    BatchEncoder &batch_encoder, uint64_t run_times) {
-  size_t slot_count = batch_encoder.slot_count();
-  size_t row_size = slot_count / 2;
-  uint64_t p = parms.plain_modulus().value();
-  vector<uint64_t> matrix_1(slot_count, 0);
-  vector<uint64_t> matrix_2(slot_count, 0);
-  vector<uint64_t> real_res(slot_count, 0);
-  vector<uint64_t> comp_res(slot_count, 0);
-  uint64_t multiply_time = 0;
-  Timer timer;
-  for (uint time = 0; time < run_times; time++) {
-    for (int i = 0; i < slot_count; i++) {
-      matrix_1[i] = rand() % p;
-      matrix_2[i] = rand() % p;
-      real_res[i] = (matrix_1[i] * matrix_2[i]) % p;
-    }
-    Plaintext p_1, p_2, p_res;
-    batch_encoder.encode(matrix_1, p_1);
-    batch_encoder.encode(matrix_2, p_2);
-    Ciphertext c_1, c_2, c_res;
-    encryptor.encrypt(p_1, c_1);
-    encryptor.encrypt(p_2, c_2);
-    timer.reset();
-    multiply(context, c_1, c_2, c_res);
-    multiply_time += timer.elapsed();
-    decryptor.decrypt(c_res, p_res);
-    batch_encoder.decode(p_res, comp_res);
-    for (int i = 0; i < slot_count; i++) {
-      assert(real_res[i] == comp_res[i]);
-    }
-  }
-  cout << "Multiply " << run_times << " , Time: " << multiply_time << " ms"
-       << endl;
-}
+// void test_mulptiply(SEALContext &context, EncryptionParameters &parms,
+//                     Encryptor &encryptor, Decryptor &decryptor,
+//                     BatchEncoder &batch_encoder, uint64_t run_times) {
+//   size_t slot_count = batch_encoder.slot_count();
+//   size_t row_size = slot_count / 2;
+//   uint64_t p = parms.plain_modulus().value();
+//   vector<uint64_t> matrix_1(slot_count, 0);
+//   vector<uint64_t> matrix_2(slot_count, 0);
+//   vector<uint64_t> real_res(slot_count, 0);
+//   vector<uint64_t> comp_res(slot_count, 0);
+//   uint64_t multiply_time = 0;
+//   Timer timer;
+//   for (uint time = 0; time < run_times; time++) {
+//     for (int i = 0; i < slot_count; i++) {
+//       matrix_1[i] = rand() % p;
+//       matrix_2[i] = rand() % p;
+//       real_res[i] = (matrix_1[i] * matrix_2[i]) % p;
+//     }
+//     Plaintext p_1, p_2, p_res;
+//     batch_encoder.encode(matrix_1, p_1);
+//     batch_encoder.encode(matrix_2, p_2);
+//     Ciphertext c_1, c_2, c_res;
+//     encryptor.encrypt(p_1, c_1);
+//     encryptor.encrypt(p_2, c_2);
+//     timer.reset();
+//     multiply(context, c_1, c_2, c_res);
+//     multiply_time += timer.elapsed();
+//     decryptor.decrypt(c_res, p_res);
+//     batch_encoder.decode(p_res, comp_res);
+//     for (int i = 0; i < slot_count; i++) {
+//       assert(real_res[i] == comp_res[i]);
+//     }
+//   }
+//   cout << "Multiply " << run_times << " , Time: " << multiply_time << " ms"
+//        << endl;
+// }
 
 // int main(int argc, char *argv[])
 // {
